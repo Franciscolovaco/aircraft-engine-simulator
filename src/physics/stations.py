@@ -13,6 +13,8 @@ European Notation (ISO/EASA):
 from dataclasses import dataclass
 from typing import Optional
 
+from src.physics.thermodynamics import AirProperties
+
 
 @dataclass
 class ThermodynamicStation:
@@ -81,18 +83,26 @@ class ThermodynamicStation:
     
     def __str__(self) -> str:
         """Return formatted string representation of station."""
+        p_t_str = f"{self.p_t:.1f}" if self.p_t is not None else "N/A"
+        T_t_str = f"{self.T_t:.2f}" if self.T_t is not None else "N/A"
+        p_str = f"{self.p:.1f}" if self.p is not None else "N/A"
+        T_str = f"{self.T:.2f}" if self.T is not None else "N/A"
+        M_str = f"{self.M:.4f}" if self.M is not None else "N/A"
+        V_str = f"{self.V:.2f}" if self.V is not None else "N/A"
+        m_dot_str = f"{self.m_dot:.2f}" if self.m_dot is not None else "N/A"
+        
         return f"Station {self.station_id}: {self.name}\n" \
-               f"  p_t = {self.p_t:.1f} Pa, T_t = {self.T_t:.2f} K\n" \
-               f"  p = {self.p:.1f} Pa, T = {self.T:.2f} K\n" \
-               f"  M = {self.M:.4f}, V = {self.V:.2f} m/s\n" \
-               f"  ṁ = {self.m_dot:.2f} kg/s"
+            f"  p_t = {p_t_str} Pa, T_t = {T_t_str} K\n" \
+            f"  p = {p_str} Pa, T = {T_str} K\n" \
+            f"  M = {M_str}, V = {V_str} m/s\n" \
+            f"  ṁ = {m_dot_str} kg/s"
     
     def is_complete(self) -> bool:
         """Check if all critical properties are defined."""
         critical_props = [self.p_t, self.T_t, self.m_dot]
         return all(prop is not None for prop in critical_props)
     
-    def calculate_speed_of_sound(self, gamma: float = 1.4, R: float = 287.0) -> float:
+    def calculate_speed_of_sound(self, gamma: float = AirProperties.GAMMA, R: float = AirProperties.R_SPECIFIC) -> float:
         """
         Calculate speed of sound at this station.
         
@@ -100,7 +110,7 @@ class ThermodynamicStation:
         
         Args:
             gamma (float): Specific heat ratio (default 1.4 for air)
-            R (float): Specific gas constant (default 287 J/kg·K for air)
+            R (float): Specific gas constant (default 287.05 J/kg·K for air)
             
         Returns:
             float: Speed of sound (m/s)
@@ -132,14 +142,14 @@ class ThermodynamicStation:
         self.M = self.V / self.a
         return self.M
     
-    def calculate_density(self, R: float = 287.0) -> float:
+    def calculate_density(self, R: float = AirProperties.R_SPECIFIC) -> float:
         """
         Calculate density at this station.
         
         Formula: ρ = p / (R × T)
         
         Args:
-            R (float): Specific gas constant (default 287 J/kg·K for air)
+            R (float): Specific gas constant (default 287.05 J/kg·K for air)
             
         Returns:
             float: Density (kg/m³)

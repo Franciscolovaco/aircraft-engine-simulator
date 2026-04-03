@@ -105,7 +105,7 @@ class TestNozzleCalculations:
         # Should be positive and reasonable
         assert V > 0
         # For these values, should be around 443 m/s
-        assert 400 < V < 500
+        assert 440 < V < 446
     
     def test_speed_of_sound_sea_level(self):
         """Test speed of sound at sea level standard conditions."""
@@ -132,7 +132,7 @@ class TestCombustorCalculations:
         f = self.calc.fuel_air_ratio_from_temperature_rise(T_inlet, T_outlet, eta_comb)
         
         # Fuel-air ratio should be small (typically 0.01-0.04)
-        assert 0.005 < f < 0.05
+        assert 0.01 < f < 0.02
 
 
 if __name__ == "__main__":

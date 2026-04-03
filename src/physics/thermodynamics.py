@@ -16,7 +16,7 @@ class AirProperties:
     GAMMA = 1.4  # Specific heat ratio (Cp/Cv)
     R_SPECIFIC = 287.05  # Specific gas constant (J/kg·K)
     C_P = 1005.0  # Specific heat at constant pressure (J/kg·K)
-    C_V = 718.0  # Specific heat at constant volume (J/kg·K)
+    C_V = C_P - R_SPECIFIC  # Specific heat at constant volume (J/kg·K)
     
     # Standard atmosphere
     T0_KELVIN = 288.15  # Sea level standard temperature (K)
@@ -62,7 +62,7 @@ class ThermodynamicsCalculator:
         Raises:
             ValueError: If pressure_ratio is negative
         """
-        if pressure_ratio < 0:
+        if pressure_ratio <= 0:
             raise ValueError("Pressure ratio cannot be negative")
         
         exponent = (self.gamma - 1) / self.gamma
@@ -154,7 +154,7 @@ class ThermodynamicsCalculator:
         """
         Calculate outlet temperature for polytropic expansion.
         
-        Formula: T_outlet = T_inlet - (T_inlet - T_isentropic) / η_poly
+        Formula: T_outlet = T_inlet * (PR)^((γ-1)·η_poly/γ)
         
         Args:
             T_inlet (float): Inlet total temperature (K)
@@ -174,12 +174,8 @@ class ThermodynamicsCalculator:
         if not (0 < polytropic_efficiency <= 1):
             raise ValueError("Polytropic efficiency must be between 0 and 1")
         
-        # Isentropic outlet temperature
-        exponent = (self.gamma - 1) / self.gamma
-        T_isentropic = T_inlet * (pressure_ratio ** exponent)
-        
-        # Actual outlet with efficiency loss
-        T_outlet = T_inlet - (T_inlet - T_isentropic) / polytropic_efficiency
+        exponent = (self.gamma - 1) * polytropic_efficiency / self.gamma
+        T_outlet = T_inlet * (pressure_ratio ** exponent)
         return T_outlet
     
     # ========== NOZZLE CALCULATIONS ==========
@@ -266,7 +262,7 @@ class ThermodynamicsCalculator:
         """
         Calculate fuel-to-air ratio needed to achieve desired temperature rise.
         
-        Formula: f = (c_p × ΔT) / (η_comb × q_r - c_p × T_inlet)
+        Formula: f = cp·(T_out - T_in) / (η·q_r - cp·T_out)
         
         Args:
             T_inlet (float): Inlet temperature (K)
@@ -288,7 +284,7 @@ class ThermodynamicsCalculator:
         
         delta_T = T_outlet - T_inlet
         numerator = self.cp * delta_T
-        denominator = combustor_efficiency * AirProperties.FUEL_HEATING_VALUE - self.cp * T_inlet
+        denominator = combustor_efficiency * AirProperties.FUEL_HEATING_VALUE - self.cp * T_outlet
         
         f = numerator / denominator
         
