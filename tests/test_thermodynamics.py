@@ -65,14 +65,17 @@ class TestCompressionExpansion:
         """Test basic fan compression calculation."""
         T_inlet = 288.15  # Sea level
         PR = 1.6  # Fan pressure ratio
-        eta = 0.89  # Fan efficiency
+        eta = 0.89  # Fan polytropic efficiency
         
         T_outlet = self.calc.polytropic_compression(T_inlet, PR, eta)
         
         # Should be higher than inlet
         assert T_outlet > T_inlet
-        # Should be approximately 383.5 K for these parameters
-        assert 380 < T_outlet < 390
+        
+        # With polytropic efficiency η=0.89:
+        # exponent = (γ-1)/(γ×η) = 0.4/(1.4×0.89) = 0.3209
+        # T_outlet = 288.15 × (1.6^0.3209) = 335.08 K
+        assert 334 < T_outlet < 336
     
     def test_polytropic_compression_perfect_efficiency(self):
         """With 100% efficiency, should match isentropic."""
