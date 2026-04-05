@@ -371,3 +371,61 @@ class ThermodynamicsCalculator:
             raise ValueError("Pressure and temperature must be positive")
         
         return p / (self.R * T)
+
+    def velocity_from_mach(self, mach: float, speed_of_sound: float) -> float:
+        """
+        Calculate velocity from Mach number and speed of sound.
+        
+        Formula: V = M x a
+        
+        Args:
+            mach (float): Mach number
+            speed_of_sound (float): Speed of sound (m/s)
+        
+        Returns:
+            float: Velocity (m/s)
+        
+        Raises:
+            ValueError: If inputs are invalid
+        """
+        if mach < 0:
+            raise ValueError(f"Mach number cannot be negative: {mach}")
+        
+        if speed_of_sound <= 0:
+            raise ValueError(f"Speed of sound must be positive: {speed_of_sound} m/s")
+        
+        return mach * speed_of_sound
+
+    def mass_flow_from_continuity(
+        self,
+        density: float,
+        velocity: float,
+        area: float
+    ) -> float:
+        """
+        Calculate mass flow rate from continuity equation.
+        
+        Formula: ṁ = ρ × V × A
+        
+        Args:
+            density (float): Air density (kg/m³)
+            velocity (float): Air velocity (m/s)
+            area (float): Cross-sectional area (m²)
+        
+        Returns:
+            float: Mass flow rate (kg/s)
+        
+        Raises:
+            ValueError: If inputs are invalid
+        """
+        if density <= 0:
+            raise ValueError(f"Density must be positive: {density} kg/m³")
+        
+        if velocity < 0:
+            raise ValueError(f"Velocity cannot be negative: {velocity} m/s")
+        
+        if area <= 0:
+            raise ValueError(f"Area must be positive: {area} m²")
+        
+        return density * velocity * area
+        
