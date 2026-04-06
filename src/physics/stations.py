@@ -1,13 +1,9 @@
 """
 Thermodynamic Station Module
 
-Represents a single station in the turbofan engine with all associated
-thermodynamic properties: pressure, temperature, velocity, mass flow, etc.
-
-European Notation (ISO/EASA):
-- Total properties: p_t, T_t (superscript 't' or '0')
-- Static properties: p, T
-- Subscripts represent station numbers: p_t3, T_t5, etc.
+Represents engine cycle station with all properties.
+European notation: p_t/T_t (total), p/T (static).
+See: docs/physics/STATION_PROPERTIES.md
 """
 
 from dataclasses import dataclass
@@ -19,70 +15,43 @@ from src.physics.thermodynamics import AirProperties
 @dataclass
 class ThermodynamicStation:
     """
-    Represents a thermodynamic station in the turbofan engine.
+    Single station in engine cycle (0, 1, 2, 2.5, 3, 4, 5, 6, 7, 8, 13, 19...).
     
-    A station is a point along the engine flowpath where we track all
-    thermodynamic and flow properties.
+    Use European notation: suffix 't' → total, no suffix → static.
+    Example: p_t3 (total pressure at station 3), T_t5 (total temp at station 5).
     
-    Attributes:
-        station_id (str): Unique identifier (e.g., "2.5", "13", "19")
-        name (str): Descriptive name (e.g., "Fan Exit", "Combustor Inlet")
-        
-        # TOTAL (STAGNATION) PROPERTIES
-        p_t (float): Total pressure (Pa) - [p⁰ᵢ or pₜᵢ]
-        T_t (float): Total temperature (K) - [T⁰ᵢ or Tₜᵢ]
-        
-        # STATIC PROPERTIES
-        p (float): Static pressure (Pa) - [pᵢ]
-        T (float): Static temperature (K) - [Tᵢ]
-        
-        # FLOW PROPERTIES
-        M (float): Mach number - [Mᵢ]
-        V (float): Velocity (m/s) - [Vᵢ]
-        a (float): Speed of sound (m/s)
-        
-        # MASS FLOW
-        m_dot (float): Mass flow rate (kg/s) - [ṁᵢ]
-        
-        # DERIVED PROPERTIES
-        rho (float): Density (kg/m³) - [ρᵢ]
-        h_t (float): Total enthalpy (J/kg) - [hₜᵢ]
-        s (float): Entropy (J/kg·K) - [sᵢ]
-        
-        # COMPOSITION (for combustor outlet onwards)
-        fuel_air_ratio (float): Fuel to air mass ratio - [f] (optional)
+    See: docs/physics/NOTATION_CONVENTIONS.md
     """
     
-    # IDENTIFICATION
     station_id: str
     name: str
     
-    # TOTAL PROPERTIES (always calculated)
-    p_t: Optional[float] = None  # Total pressure (Pa)
-    T_t: Optional[float] = None  # Total temperature (K)
+    # TOTAL (STAGNATION) PROPERTIES
+    p_t: Optional[float] = None
+    T_t: Optional[float] = None
     
-    # STATIC PROPERTIES (calculated when velocity known)
-    p: Optional[float] = None    # Static pressure (Pa)
-    T: Optional[float] = None    # Static temperature (K)
+    # STATIC PROPERTIES
+    p: Optional[float] = None
+    T: Optional[float] = None
     
     # FLOW PROPERTIES
-    M: Optional[float] = None    # Mach number
-    V: Optional[float] = None    # Velocity (m/s)
-    a: Optional[float] = None    # Speed of sound (m/s)
+    M: Optional[float] = None
+    V: Optional[float] = None
+    a: Optional[float] = None
     
-    # MASS FLOW
-    m_dot: Optional[float] = None  # Mass flow rate (kg/s)
+    # MASS FLOW & DENSITY
+    m_dot: Optional[float] = None
+    rho: Optional[float] = None
     
-    # DERIVED PROPERTIES
-    rho: Optional[float] = None   # Density (kg/m³)
-    h_t: Optional[float] = None   # Total enthalpy (J/kg)
-    s: Optional[float] = None     # Entropy (J/kg·K)
+    # DERIVED
+    h_t: Optional[float] = None
+    s: Optional[float] = None
     
-    # COMPOSITION
-    fuel_air_ratio: Optional[float] = None  # f (fuel/air ratio)
+    # COMPOSITION (combustor outlet onwards)
+    fuel_air_ratio: Optional[float] = None
     
     def __str__(self) -> str:
-        """Return formatted string representation of station."""
+        """Formatted output."""
         p_t_str = f"{self.p_t:.1f}" if self.p_t is not None else "N/A"
         T_t_str = f"{self.T_t:.2f}" if self.T_t is not None else "N/A"
         p_str = f"{self.p:.1f}" if self.p is not None else "N/A"
@@ -91,33 +60,24 @@ class ThermodynamicStation:
         V_str = f"{self.V:.2f}" if self.V is not None else "N/A"
         m_dot_str = f"{self.m_dot:.2f}" if self.m_dot is not None else "N/A"
         
-        return f"Station {self.station_id}: {self.name}\n" \
-            f"  p_t = {p_t_str} Pa, T_t = {T_t_str} K\n" \
-            f"  p = {p_str} Pa, T = {T_str} K\n" \
-            f"  M = {M_str}, V = {V_str} m/s\n" \
+        return (
+            f"Station {self.station_id}: {self.name}\n"
+            f"  p_t = {p_t_str} Pa, T_t = {T_t_str} K\n"
+            f"  p = {p_str} Pa, T = {T_str} K\n"
+            f"  M = {M_str}, V = {V_str} m/s\n"
             f"  ṁ = {m_dot_str} kg/s"
+        )
     
     def is_complete(self) -> bool:
-        """Check if all critical properties are defined."""
-        critical_props = [self.p_t, self.T_t, self.m_dot]
-        return all(prop is not None for prop in critical_props)
+        """Check if critical properties (p_t, T_t, m_dot) are defined."""
+        return all(x is not None for x in [self.p_t, self.T_t, self.m_dot])
     
-    def calculate_speed_of_sound(self, gamma: float = AirProperties.GAMMA, R: float = AirProperties.R_SPECIFIC) -> float:
-        """
-        Calculate speed of sound at this station.
-        
-        Formula: a = √(γ × R × T)
-        
-        Args:
-            gamma (float): Specific heat ratio (default 1.4 for air)
-            R (float): Specific gas constant (default 287.05 J/kg·K for air)
-            
-        Returns:
-            float: Speed of sound (m/s)
-            
-        Raises:
-            ValueError: If static temperature is not defined
-        """
+    def calculate_speed_of_sound(
+        self,
+        gamma: float = AirProperties.GAMMA,
+        R: float = AirProperties.R_SPECIFIC
+    ) -> float:
+        """a = √(γ × R × T)."""
         if self.T is None:
             raise ValueError(f"Static temperature not defined at station {self.station_id}")
         
@@ -125,17 +85,7 @@ class ThermodynamicStation:
         return self.a
     
     def calculate_mach(self) -> float:
-        """
-        Calculate Mach number at this station.
-        
-        Formula: M = V / a
-        
-        Returns:
-            float: Mach number (dimensionless)
-            
-        Raises:
-            ValueError: If velocity or speed of sound not defined
-        """
+        """M = V / a."""
         if self.V is None or self.a is None:
             raise ValueError(f"Velocity or speed of sound not defined at station {self.station_id}")
         
@@ -143,22 +93,9 @@ class ThermodynamicStation:
         return self.M
     
     def calculate_density(self, R: float = AirProperties.R_SPECIFIC) -> float:
-        """
-        Calculate density at this station.
-        
-        Formula: ρ = p / (R × T)
-        
-        Args:
-            R (float): Specific gas constant (default 287.05 J/kg·K for air)
-            
-        Returns:
-            float: Density (kg/m³)
-            
-        Raises:
-            ValueError: If static pressure or temperature not defined
-        """
+        """ρ = p / (R × T)."""
         if self.p is None or self.T is None:
-            raise ValueError(f"Static pressure or temperature not defined at station {self.station_id}")
+            raise ValueError(f"Static p or T not defined at station {self.station_id}")
         
         self.rho = self.p / (R * self.T)
         return self.rho

@@ -1,8 +1,10 @@
 """
 Thermodynamics Calculator Module
 
-Provides thermodynamic calculations for turbofan engine analysis.
-All calculations use SI units and standard air properties.
+Calculates thermodynamic properties for gas turbine engine stations.
+Uses European notation: p_t/T_t (total), p/T (static).
+
+See: docs/physics/THERMODYNAMICS_REFERENCE.md
 """
 
 import math
@@ -10,107 +12,52 @@ from typing import Tuple
 
 
 class AirProperties:
-    """Standard air properties and gas constants."""
-    
-    # Air properties at sea level (standard conditions)
-    GAMMA = 1.4  # Specific heat ratio (Cp/Cv)
-    R_SPECIFIC = 287.05  # Specific gas constant (J/kg·K)
-    C_P = 1005.0  # Specific heat at constant pressure (J/kg·K)
-    C_V = C_P - R_SPECIFIC  # Specific heat at constant volume (J/kg·K)
-    
-    # Standard atmosphere
-    T0_KELVIN = 288.15  # Sea level standard temperature (K)
-    P0_PASCAL = 101325  # Sea level standard pressure (Pa)
-    
-    # Fuel properties
-    FUEL_HEATING_VALUE = 43.0e6  # Jet fuel (kerosene) heating value (J/kg)
+    """Standard air properties (constant across engine types)."""
+    GAMMA = 1.4
+    R_SPECIFIC = 287.05
+    C_P = 1005.0
+    C_V = C_P - R_SPECIFIC
+    T0_KELVIN = 288.15
+    P0_PASCAL = 101325
+    FUEL_HEATING_VALUE = 43.0e6  # Jet fuel
 
 
 class ThermodynamicsCalculator:
     """
-    Calculates thermodynamic properties for turbofan engine stations.
+    Calculates thermodynamic properties for engine cycle stations.
     
-    This calculator handles:
-    - Isentropic relations for compression and expansion
-    - Polytropic processes for real components
-    - Total/static property conversions
-    - Nozzle calculations
-    - Combustor energy balance
+    Handles isentropic/polytropic processes, nozzle expansion, combustor energy balance.
+    See: docs/physics/ for detailed physics and examples.
     """
     
     def __init__(self):
-        """Initialize the calculator with air properties."""
         self.gamma = AirProperties.GAMMA
         self.R = AirProperties.R_SPECIFIC
         self.cp = AirProperties.C_P
         self.cv = AirProperties.C_V
     
-    # ========== ISENTROPIC RELATIONS ==========
+    # ISENTROPIC RELATIONS
     
     def isentropic_temperature_ratio(self, pressure_ratio: float) -> float:
-        """
-        Calculate ideal temperature ratio across an isentropic process.
-        
-        Formula: T2/T1 = (P2/P1)^((γ-1)/γ)
-        
-        Args:
-            pressure_ratio (float): P2/P1
-            
-        Returns:
-            float: Temperature ratio T2/T1
-            
-        Raises:
-            ValueError: If pressure_ratio is negative
-        """
+        """T2/T1 = (P2/P1)^((γ-1)/γ). See ISENTROPIC_POLYTROPIC.md."""
         if pressure_ratio <= 0:
-            raise ValueError("Pressure ratio cannot be negative")
-        
-        exponent = (self.gamma - 1) / self.gamma
-        return pressure_ratio ** exponent
+            raise ValueError("Pressure ratio must be positive")
+        return pressure_ratio ** ((self.gamma - 1) / self.gamma)
     
     def total_temperature_ratio_from_mach(self, mach: float) -> float:
-        """
-        Calculate total to static temperature ratio from Mach number.
-        
-        Formula: T_t / T = 1 + ((γ-1)/2) × M²
-        
-        Args:
-            mach (float): Mach number
-            
-        Returns:
-            float: Temperature ratio T_t / T
-            
-        Raises:
-            ValueError: If Mach number is negative
-        """
+        """T_t/T = 1 + ((γ-1)/2) × M². See STATION_PROPERTIES.md."""
         if mach < 0:
-            raise ValueError("Mach number cannot be negative")
-        
+            raise ValueError("Mach cannot be negative")
         return 1 + ((self.gamma - 1) / 2) * (mach ** 2)
     
     def total_pressure_ratio_from_mach(self, mach: float) -> float:
-        """
-        Calculate total to static pressure ratio from Mach number.
-        
-        Formula: P_t / P = (1 + ((γ-1)/2) × M²)^(γ/(γ-1))
-        
-        Args:
-            mach (float): Mach number
-            
-        Returns:
-            float: Pressure ratio P_t / P
-            
-        Raises:
-            ValueError: If Mach number is negative
-        """
+        """P_t/P = (T_t/T)^(γ/(γ-1)). See STATION_PROPERTIES.md."""
         if mach < 0:
-            raise ValueError("Mach number cannot be negative")
-        
+            raise ValueError("Mach cannot be negative")
         temp_ratio = self.total_temperature_ratio_from_mach(mach)
-        exponent = self.gamma / (self.gamma - 1)
-        return temp_ratio ** exponent
+        return temp_ratio ** (self.gamma / (self.gamma - 1))
     
-    # ========== COMPRESSION & EXPANSION ==========
+    # POLYTROPIC PROCESSES (TURBINE/COMPRESSOR)
     
     def polytropic_compression(
         self,
@@ -119,31 +66,18 @@ class ThermodynamicsCalculator:
         polytropic_efficiency: float
     ) -> float:
         """
-        Calculate outlet temperature for polytropic compression.
-        
-        Formula: T_outlet = T_inlet × (PR)^((γ-1)/(γ×η_poly))
-        
-        Args:
-            T_inlet (float): Inlet total temperature (K)
-            pressure_ratio (float): Pressure ratio (P_out / P_in)
-            polytropic_efficiency (float): Polytropic efficiency (0-1)
-            
-        Returns:
-            float: Outlet total temperature (K)
-            
-        Raises:
-            ValueError: If inputs are invalid
+        T_outlet = T_inlet × (PR)^((γ-1)/(γ×η_poly))
+        See: ISENTROPIC_POLYTROPIC.md for detailed derivation.
         """
         if T_inlet <= 0:
             raise ValueError("Inlet temperature must be positive")
         if pressure_ratio <= 1:
-            raise ValueError("Pressure ratio must be greater than 1 for compression")
+            raise ValueError("Compression PR must be > 1")
         if not (0 < polytropic_efficiency <= 1):
-            raise ValueError("Polytropic efficiency must be between 0 and 1")
+            raise ValueError("Polytropic efficiency must be (0, 1]")
         
         exponent = (self.gamma - 1) / (self.gamma * polytropic_efficiency)
-        T_outlet = T_inlet * (pressure_ratio ** exponent)
-        return T_outlet
+        return T_inlet * (pressure_ratio ** exponent)
     
     def polytropic_expansion(
         self,
@@ -152,61 +86,28 @@ class ThermodynamicsCalculator:
         polytropic_efficiency: float
     ) -> float:
         """
-        Calculate outlet temperature for polytropic expansion.
-        
-        Formula: T_outlet = T_inlet * (PR)^((γ-1)·η_poly/γ)
-        
-        Args:
-            T_inlet (float): Inlet total temperature (K)
-            pressure_ratio (float): Expansion ratio (P_out / P_in) < 1
-            polytropic_efficiency (float): Polytropic efficiency (0-1)
-            
-        Returns:
-            float: Outlet total temperature (K)
-            
-        Raises:
-            ValueError: If inputs are invalid
+        T_outlet = T_inlet × (PR)^((γ-1)×η_poly/γ)
+        See: ISENTROPIC_POLYTROPIC.md for detailed derivation.
         """
         if T_inlet <= 0:
             raise ValueError("Inlet temperature must be positive")
         if not (0 < pressure_ratio < 1):
-            raise ValueError("Pressure ratio must be between 0 and 1 for expansion")
+            raise ValueError("Expansion PR must be (0, 1)")
         if not (0 < polytropic_efficiency <= 1):
-            raise ValueError("Polytropic efficiency must be between 0 and 1")
+            raise ValueError("Polytropic efficiency must be (0, 1]")
         
         exponent = (self.gamma - 1) * polytropic_efficiency / self.gamma
-        T_outlet = T_inlet * (pressure_ratio ** exponent)
-        return T_outlet
+        return T_inlet * (pressure_ratio ** exponent)
     
-    # ========== NOZZLE CALCULATIONS ==========
+    # NOZZLE CALCULATIONS
     
-    def nozzle_exit_velocity(
-        self,
-        T_total: float,
-        T_static: float
-    ) -> float:
-        """
-        Calculate exit velocity using energy equation for ideal nozzle.
-        
-        Formula: V = √(2 × c_p × (T_t - T))
-        
-        Args:
-            T_total (float): Total temperature (K)
-            T_static (float): Static temperature at exit (K)
-            
-        Returns:
-            float: Exit velocity (m/s)
-            
-        Raises:
-            ValueError: If temperatures are invalid
-        """
+    def nozzle_exit_velocity(self, T_total: float, T_static: float) -> float:
+        """V = √(2 × cp × (T_t - T)). See THERMODYNAMICS_REFERENCE.md."""
         if T_total <= 0 or T_static <= 0:
             raise ValueError("Temperatures must be positive")
         if T_static > T_total:
-            raise ValueError("Static temperature cannot exceed total temperature")
-        
-        velocity = math.sqrt(2 * self.cp * (T_total - T_static))
-        return velocity
+            raise ValueError("T_static cannot exceed T_total")
+        return math.sqrt(2 * self.cp * (T_total - T_static))
     
     def isentropic_nozzle_expansion(
         self,
@@ -216,42 +117,24 @@ class ThermodynamicsCalculator:
         nozzle_efficiency: float = 1.0
     ) -> Tuple[float, float, float]:
         """
-        Calculate nozzle exit properties with isentropic expansion.
-        
-        Args:
-            T_total (float): Total temperature at nozzle inlet (K)
-            p_total (float): Total pressure at nozzle inlet (Pa)
-            p_static (float): Static pressure at exit (usually ambient) (Pa)
-            nozzle_efficiency (float): Nozzle efficiency (0-1), default 1.0 (ideal)
-            
-        Returns:
-            Tuple[T_exit, V_exit, M_exit]:
-                - T_exit (float): Static temperature at exit (K)
-                - V_exit (float): Exit velocity (m/s)
-                - M_exit (float): Exit Mach number
-                
-        Raises:
-            ValueError: If inputs are invalid
+        Returns: (T_exit, V_exit, M_exit)
+        See: THERMODYNAMICS_REFERENCE.md for isentropic expansion theory.
         """
         if not (0 < nozzle_efficiency <= 1):
-            raise ValueError("Nozzle efficiency must be between 0 and 1")
+            raise ValueError("Nozzle efficiency must be (0, 1]")
         
-        # Isentropic expansion
         pressure_ratio = p_static / p_total
         exponent = (self.gamma - 1) / self.gamma
         T_isentropic = T_total * (pressure_ratio ** exponent)
-        
-        # Apply nozzle efficiency
         T_exit = T_total - nozzle_efficiency * (T_total - T_isentropic)
         
-        # Calculate exit velocity and Mach
         V_exit = self.nozzle_exit_velocity(T_total, T_exit)
         a_exit = math.sqrt(self.gamma * self.R * T_exit)
         M_exit = V_exit / a_exit
         
         return T_exit, V_exit, M_exit
     
-    # ========== COMBUSTOR CALCULATIONS ==========
+    # COMBUSTOR
     
     def fuel_air_ratio_from_temperature_rise(
         self,
@@ -260,40 +143,27 @@ class ThermodynamicsCalculator:
         combustor_efficiency: float = 0.98
     ) -> float:
         """
-        Calculate fuel-to-air ratio needed to achieve desired temperature rise.
-        
-        Formula: f = cp·(T_out - T_in) / (η·q_r - cp·T_out)
-        
-        Args:
-            T_inlet (float): Inlet temperature (K)
-            T_outlet (float): Desired outlet (flame) temperature (K)
-            combustor_efficiency (float): Combustor efficiency (0-1)
-            
-        Returns:
-            float: Fuel-to-air ratio f (mass fuel / mass air)
-            
-        Raises:
-            ValueError: If temperatures are invalid or efficiency out of range
+        f = cp·ΔT / (η·q_r - cp·T_outlet)
+        See: THERMODYNAMICS_REFERENCE.md for combustor energy balance.
         """
         if T_inlet <= 0 or T_outlet <= 0:
             raise ValueError("Temperatures must be positive")
         if T_outlet <= T_inlet:
-            raise ValueError("Outlet temperature must exceed inlet temperature")
+            raise ValueError("Outlet temp must exceed inlet")
         if not (0 < combustor_efficiency <= 1):
-            raise ValueError("Combustor efficiency must be between 0 and 1")
+            raise ValueError("Combustor efficiency must be (0, 1]")
         
         delta_T = T_outlet - T_inlet
         numerator = self.cp * delta_T
         denominator = combustor_efficiency * AirProperties.FUEL_HEATING_VALUE - self.cp * T_outlet
-        
         f = numerator / denominator
         
-        if f < 0 or f > 0.1:  # Fuel-air ratio rarely exceeds 0.1
-            raise ValueError(f"Calculated fuel-air ratio {f} is unrealistic")
+        if f < 0 or f > 0.1:
+            raise ValueError(f"FAR {f} unrealistic (typically < 0.05)")
         
         return f
     
-    # ========== RAM EFFECT ==========
+    # AMBIENT CONDITIONS (RAM EFFECT)
     
     def ram_effect_conditions(
         self,
@@ -302,98 +172,37 @@ class ThermodynamicsCalculator:
         mach: float
     ) -> Tuple[float, float]:
         """
-        Calculate total (stagnation) conditions from free stream.
-        
-        Formula:
-        - T_t = T × (1 + ((γ-1)/2) × M²)
-        - P_t = P × (T_t / T)^(γ/(γ-1))
-        
-        Args:
-            T_static (float): Static temperature (K)
-            p_static (float): Static pressure (Pa)
-            mach (float): Mach number
-            
-        Returns:
-            Tuple[T_total, P_total]:
-                - T_total (float): Total temperature (K)
-                - P_total (float): Total pressure (Pa)
-                
-        Raises:
-            ValueError: If inputs are invalid
+        (T_t, P_t) from static conditions and Mach.
+        See: FREESTREAM_STATION0.md for ram effect physics.
         """
         if T_static <= 0 or p_static <= 0 or mach < 0:
-            raise ValueError("Temperatures, pressures must be positive; Mach >= 0")
+            raise ValueError("T, P must be positive; Mach >= 0")
         
         T_total = T_static * self.total_temperature_ratio_from_mach(mach)
         P_total = p_static * self.total_pressure_ratio_from_mach(mach)
         
         return T_total, P_total
     
-    # ========== UTILITY FUNCTIONS ==========
+    # UTILITY FUNCTIONS
     
     def speed_of_sound(self, T: float) -> float:
-        """
-        Calculate speed of sound at given temperature.
-        
-        Formula: a = √(γ × R × T)
-        
-        Args:
-            T (float): Temperature (K)
-            
-        Returns:
-            float: Speed of sound (m/s)
-            
-        Raises:
-            ValueError: If temperature is invalid
-        """
+        """a = √(γ × R × T)."""
         if T <= 0:
             raise ValueError("Temperature must be positive")
-        
         return math.sqrt(self.gamma * self.R * T)
     
     def density_from_pressure_temperature(self, p: float, T: float) -> float:
-        """
-        Calculate density from pressure and temperature.
-        
-        Formula: ρ = p / (R × T)
-        
-        Args:
-            p (float): Pressure (Pa)
-            T (float): Temperature (K)
-            
-        Returns:
-            float: Density (kg/m³)
-            
-        Raises:
-            ValueError: If pressure or temperature is invalid
-        """
+        """ρ = p / (R × T)."""
         if p <= 0 or T <= 0:
             raise ValueError("Pressure and temperature must be positive")
-        
         return p / (self.R * T)
 
     def velocity_from_mach(self, mach: float, speed_of_sound: float) -> float:
-        """
-        Calculate velocity from Mach number and speed of sound.
-        
-        Formula: V = M x a
-        
-        Args:
-            mach (float): Mach number
-            speed_of_sound (float): Speed of sound (m/s)
-        
-        Returns:
-            float: Velocity (m/s)
-        
-        Raises:
-            ValueError: If inputs are invalid
-        """
+        """V = M × a."""
         if mach < 0:
-            raise ValueError(f"Mach number cannot be negative: {mach}")
-        
+            raise ValueError("Mach cannot be negative")
         if speed_of_sound <= 0:
-            raise ValueError(f"Speed of sound must be positive: {speed_of_sound} m/s")
-        
+            raise ValueError("Speed of sound must be positive")
         return mach * speed_of_sound
 
     def mass_flow_from_continuity(
@@ -402,30 +211,11 @@ class ThermodynamicsCalculator:
         velocity: float,
         area: float
     ) -> float:
-        """
-        Calculate mass flow rate from continuity equation.
-        
-        Formula: ṁ = ρ × V × A
-        
-        Args:
-            density (float): Air density (kg/m³)
-            velocity (float): Air velocity (m/s)
-            area (float): Cross-sectional area (m²)
-        
-        Returns:
-            float: Mass flow rate (kg/s)
-        
-        Raises:
-            ValueError: If inputs are invalid
-        """
+        """ṁ = ρ × V × A."""
         if density <= 0:
-            raise ValueError(f"Density must be positive: {density} kg/m³")
-        
+            raise ValueError("Density must be positive")
         if velocity < 0:
-            raise ValueError(f"Velocity cannot be negative: {velocity} m/s")
-        
+            raise ValueError("Velocity cannot be negative")
         if area <= 0:
-            raise ValueError(f"Area must be positive: {area} m²")
-        
+            raise ValueError("Area must be positive")
         return density * velocity * area
-        
