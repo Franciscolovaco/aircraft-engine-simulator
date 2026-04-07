@@ -40,9 +40,9 @@ class CycleDefaults:
     """Default values for cycle parameters (IDEAL operation)."""
     
     # ===== FLIGHT CONDITIONS =====
-    ALTITUDE = 0  # m (sea level)
-    MACH_NUMBER = 0.0  # Stationary
-    MASS_FLOW_TOTAL = 100  # kg/s (small baseline)
+    ALTITUDE = 10000  # m (cruise altitude)
+    MACH_NUMBER = 0.8  # Typical cruise Mach number
+    MASS_FLOW_TOTAL = 400  # kg/s (typical for medium turbofan)
     
     # ===== DESIGN POINT =====
     PR_FAN = 1.5  # Low pressure ratio (ideal fan)
