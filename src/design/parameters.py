@@ -5,6 +5,12 @@ Specific design inputs for cycle calculation.
 User modifies THIS FILE for different design cases.
 
 All parameters are optional — if not specified (None), components/cycle use AllDefaults.
+User specifies only what differs from ideal.
+
+For fan sizing:
+- Specify EITHER fan_diameter OR m_dot_total (not both, or one calculated)
+- If both None: uses m_dot_total from defaults
+- If both specified: solver uses fan_diameter, calculates m_dot (overrides user m_dot)
 
 See: docs/design/PARAMETERS.md
 """
@@ -32,7 +38,11 @@ class DesignCase:
     # ===== FLIGHT CONDITIONS (Optional) =====
     altitude: Optional[float] = None  # m
     M0: Optional[float] = None  # Mach number
-    m_dot_total: Optional[float] = None  # kg/s
+    m_dot_total: Optional[float] = None  # kg/s (EITHER this OR fan_diameter)
+    
+    # ===== FAN SIZING (Optional) =====
+    fan_diameter: Optional[float] = None  # m (EITHER this OR m_dot_total)
+    hub_tip_ratio: Optional[float] = None  # λ = r_hub/r_tip (default 0.3)
     
     # ===== DESIGN POINT (Optional) =====
     PR_fan: Optional[float] = None  # Fan pressure ratio
@@ -59,9 +69,22 @@ class DesignCase:
             if self.M0 < 0 or self.M0 > 2.0:
                 raise ValueError(f"Mach {self.M0} outside realistic range (0–2.0)")
         
+        # Fan sizing: EITHER m_dot_total OR fan_diameter (not both, or one is output)
+        if self.m_dot_total is not None and self.fan_diameter is not None:
+            # Both specified: solver uses fan_diameter, m_dot will be calculated
+            pass  # No error; solver handles this
+        
         if self.m_dot_total is not None:
             if self.m_dot_total <= 0:
                 raise ValueError(f"Mass flow {self.m_dot_total} must be positive")
+        
+        if self.fan_diameter is not None:
+            if self.fan_diameter <= 0:
+                raise ValueError(f"Fan diameter {self.fan_diameter} must be positive")
+        
+        if self.hub_tip_ratio is not None:
+            if not (0 < self.hub_tip_ratio < 1):
+                raise ValueError(f"Hub/tip ratio {self.hub_tip_ratio} must be (0, 1)")
         
         if self.PR_fan is not None:
             if self.PR_fan <= 1:
@@ -85,6 +108,12 @@ class DesignCase:
     
     def get_m_dot_total(self) -> float:
         return self.m_dot_total if self.m_dot_total is not None else AllDefaults.MASS_FLOW_TOTAL
+    
+    def get_fan_diameter(self) -> Optional[float]:
+        return self.fan_diameter
+    
+    def get_hub_tip_ratio(self) -> float:
+        return self.hub_tip_ratio if self.hub_tip_ratio is not None else 0.3  # Default 0.3
     
     def get_PR_fan(self) -> float:
         return self.PR_fan if self.PR_fan is not None else AllDefaults.PR_FAN
@@ -122,7 +151,8 @@ class DesignCase:
     def __repr__(self) -> str:
         return (
             f"DesignCase('{self.name}')\n"
-            f"  Flight: h={self.get_altitude()}m, M={self.get_M0()}, m_dot={self.get_m_dot_total()}kg/s\n"
+            f"  Flight: h={self.get_altitude()}m, M={self.get_M0()}\n"
+            f"  Fan: m_dot={self.get_m_dot_total():.1f}kg/s, D={self.fan_diameter}m, λ={self.get_hub_tip_ratio()}\n"
             f"  Design: PR_fan={self.get_PR_fan()}, PR_HPC={self.get_PR_HPC()}, BPR={self.get_bypass_ratio()}\n"
             f"  Components: inlet={self.get_inlet_recovery():.2f}, comp_eff={self.get_compressor_efficiency():.2f}, "
             f"turb_eff={self.get_turbine_efficiency():.2f}"
