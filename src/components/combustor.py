@@ -20,7 +20,7 @@ class Combustor:
                 If None, uses ComponentDefaults.COMBUSTOR_TARGET_T_T
             efficiency: Combustor efficiency (0 < η ≤ 1).
                 If None, uses ComponentDefaults.COMBUSTOR_EFFICIENCY
-            pressure_loss: Fractional pressure drop (0 < Δp/p < 1).
+            pressure_loss: Fractional pressure drop (0 ≤ Δp/p < 1).
                 If None, uses ComponentDefaults.COMBUSTOR_PRESSURE_LOSS
         """
         if target_T_t is None:
@@ -34,8 +34,8 @@ class Combustor:
             raise ValueError(f"Target temperature {target_T_t} K must be positive")
         if not (0 < efficiency <= 1):
             raise ValueError(f"Combustor efficiency {efficiency} must be (0, 1]")
-        if not (0 < pressure_loss < 1):
-            raise ValueError(f"Pressure loss {pressure_loss} must be (0, 1)")
+        if not (0 <= pressure_loss < 1):
+            raise ValueError(f"Pressure loss {pressure_loss} must be [0, 1)")
         
         self.target_T_t = target_T_t
         self.efficiency = efficiency
@@ -50,7 +50,7 @@ class Combustor:
             (outlet_station, fuel_air_ratio)
         """
         if station_inlet.T_t is None or station_inlet.p_t is None:
-            raise ValueError("Combustor inlet must have T_t and p_t")
+            raise ValueError("Combustor inlet must have p_t and T_t")
         
         far = self.calc.fuel_air_ratio_from_temperature_rise(
             station_inlet.T_t,

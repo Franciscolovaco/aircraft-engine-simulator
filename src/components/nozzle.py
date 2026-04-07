@@ -38,7 +38,7 @@ class Nozzle:
             (outlet_station, exit_velocity, exit_mach)
         """
         if station_inlet.T_t is None or station_inlet.p_t is None:
-            raise ValueError(f"{self.name} inlet must have T_t and p_t")
+            raise ValueError(f"{self.name} inlet must have p_t and T_t")
         if exit_pressure <= 0:
             raise ValueError(f"Exit pressure {exit_pressure} Pa must be positive")
         

@@ -40,7 +40,7 @@ class Turbine:
             outlet_station with lower pressure and temperature
         """
         if station_inlet.T_t is None or station_inlet.p_t is None:
-            raise ValueError(f"{self.name} inlet must have T_t and p_t")
+            raise ValueError(f"{self.name} inlet must have p_t and T_t")
         if not (0 < pressure_ratio < 1):
             raise ValueError(f"{self.name} PR {pressure_ratio} must be (0, 1) for expansion")
         

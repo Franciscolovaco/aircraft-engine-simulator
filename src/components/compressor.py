@@ -41,7 +41,7 @@ class Compressor:
         Returns outlet station with higher pressure and temperature.
         """
         if station_inlet.T_t is None or station_inlet.p_t is None:
-            raise ValueError(f"{self.name} inlet must have T_t and p_t")
+            raise ValueError(f"{self.name} inlet must have p_t and T_t")
         
         T_t_outlet = self.calc.polytropic_compression(
             station_inlet.T_t,
