@@ -22,7 +22,7 @@ class ComponentDefaults:
     COMPRESSOR_POLYTROPIC_EFFICIENCY = 1.0  # Isentropic (reversible)
     
     # ===== COMBUSTOR =====
-    COMBUSTOR_TARGET_T_T = 10000  # K (no material constraint)
+    COMBUSTOR_TARGET_T_T = 2000  # K (very high, no constraint)
     COMBUSTOR_EFFICIENCY = 1.0  # All fuel energy to air
     COMBUSTOR_PRESSURE_LOSS = 0.0  # No friction
     
