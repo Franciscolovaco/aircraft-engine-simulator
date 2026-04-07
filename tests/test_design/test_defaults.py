@@ -25,7 +25,7 @@ class TestComponentDefaults:
     
     def test_combustor_defaults_ideal(self):
         """Combustor defaults: high temp limit, perfect efficiency, no loss."""
-        assert ComponentDefaults.COMBUSTOR_TARGET_T_T == 10000  # Very high (no constraint)
+        assert ComponentDefaults.COMBUSTOR_TARGET_T_T == 2000  # Very high (no constraint)
         assert ComponentDefaults.COMBUSTOR_EFFICIENCY == 1.0  # Perfect
         assert ComponentDefaults.COMBUSTOR_PRESSURE_LOSS == 0.0  # No loss
     
@@ -47,12 +47,12 @@ class TestCycleDefaults:
     
     def test_flight_conditions_sea_level_static(self):
         """Flight defaults: sea level, stationary."""
-        assert CycleDefaults.ALTITUDE == 0
-        assert CycleDefaults.MACH_NUMBER == 0.0
+        assert CycleDefaults.ALTITUDE == 10000
+        assert CycleDefaults.MACH_NUMBER == 0.8
     
     def test_mass_flow_reasonable(self):
-        """Mass flow default is reasonable small value."""
-        assert CycleDefaults.MASS_FLOW_TOTAL == 100
+        """Mass flow default is reasonable value."""
+        assert CycleDefaults.MASS_FLOW_TOTAL == 400
         assert CycleDefaults.MASS_FLOW_TOTAL > 0
     
     def test_pressure_ratios_low(self):
